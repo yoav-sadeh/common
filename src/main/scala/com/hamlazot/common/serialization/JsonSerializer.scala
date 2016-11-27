@@ -1,24 +1,33 @@
 package com.hamlazot.common.serialization
 
-import java.time.temporal.ChronoUnit
-import java.time.{ZoneOffset, ZonedDateTime}
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
-import org.json4s.{DefaultFormats, CustomSerializer}
+import com.hamlazot.common.macros.Macros
+import com.hamlazot.common.macros.Macros.Mappable
 import org.json4s.JsonAST.{JNull, JString}
-import org.json4s.ext.{JavaTypesSerializers, EnumNameSerializer}
+import org.json4s.ext.{EnumNameSerializer, JavaTypesSerializers}
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.Serialization.write
+import org.json4s.{MappingException, CustomKeySerializer, CustomSerializer, DefaultFormats}
 
 import scala.collection.mutable
 
 /**
  * @author yoav @since 2/20/16.
  */
-trait JsonSerializer extends JsonMethods with SerializationTransformer with DeserializationTransformer{
+trait JsonSerializer
+  extends JsonMethods
+  with SerializationTransformer
+  with DeserializationTransformer
+  with Mapper {
 
   private val enums: mutable.MutableList[EnumNameSerializer[_]] = mutable.MutableList.empty[EnumNameSerializer[_]]
-  implicit def jsonFormat = DefaultFormats ++ JavaTypesSerializers.all ++ enums.toSeq ++ Seq(ZonedDateTimeSerializer)
+  private val customKeySerializers: mutable.MutableList[CustomKeySerializer[_]] = mutable.MutableList.empty[CustomKeySerializer[_]]
+
+
+  implicit def jsonFormat = (DefaultFormats ++ JavaTypesSerializers.all ++ enums.toSeq ++ Seq(ZonedDateTimeSerializer)).addKeySerializers(customKeySerializers.toList)
 
   def serialize(obj: AnyRef): String = {
     compact(render(parse(write(obj)).map(transformSerialized)))
@@ -26,10 +35,34 @@ trait JsonSerializer extends JsonMethods with SerializationTransformer with Dese
 
   def deserialize[A: Manifest](json: String): A = {
     val parsed = parse(json)
+
     parsed.map(transformDeserialized).extract[A]
   }
 
-  def registerEnumForMarshalling[A <: Enumeration](enum : Enumeration) = enums += new EnumNameSerializer(enum)
+  def deseriamap[A](json: String)(implicit manif: Manifest[A], mapp: Mappable[A]): A = {
+    val parsed = parse(json)
+    import com.hamlazot.common.macros.Macros.Mappable
+    try{
+      parsed.map(transformDeserialized).extract[A]
+    }
+    catch {
+      case e: MappingException => material[A](json)
+    }
+  }
+
+  def material[A: Mappable](json: String): A = {
+    val parsed = parse(json)
+
+    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String,Any]])
+  }
+
+  def registerEnumForMarshalling[A <: Enumeration](enum: Enumeration) = enums += new EnumNameSerializer(enum)
+
+  def registerCustomKeySerializer[A: Manifest](ser: A => String, des: String => A) = customKeySerializers += new CustomKeySerializer[A](format => ( {
+    case s: String => des(s)
+  }, {
+    case k: A => ser(k)
+  }))
 }
 
 case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](format => ( {
@@ -42,3 +75,4 @@ case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](form
 }
   ))
 
+//trait Manifestable[T] extends Manifest[T] with Mappable[T]
