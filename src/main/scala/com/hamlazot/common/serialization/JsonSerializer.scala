@@ -3,7 +3,7 @@ package com.hamlazot.common.serialization
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-
+import com.hamlazot.common.macros.Macros.TypePath
 import com.hamlazot.common.macros.Macros
 import com.hamlazot.common.macros.Macros.Mappable
 import org.json4s.JsonAST.{JNull, JString}
@@ -23,6 +23,7 @@ trait JsonSerializer
   with DeserializationTransformer
   with Mapper {
 
+  val deserializationStrategy: DeserializationStrategy = Recurssive
   private val enums: mutable.MutableList[EnumNameSerializer[_]] = mutable.MutableList.empty[EnumNameSerializer[_]]
   private val customKeySerializers: mutable.MutableList[CustomKeySerializer[_]] = mutable.MutableList.empty[CustomKeySerializer[_]]
 
@@ -41,12 +42,10 @@ trait JsonSerializer
 
   def deseriamap[A](json: String)(implicit manif: Manifest[A], mapp: Mappable[A]): A = {
     val parsed = parse(json)
-    import com.hamlazot.common.macros.Macros.Mappable
-    try{
-      parsed.map(transformDeserialized).extract[A]
-    }
-    catch {
-      case e: MappingException => material[A](json)
+
+    deserializationStrategy match{
+      case Naive => materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String,Any]])
+      case Recurssive => parsed.map(transformDeserialized).extract[A]
     }
   }
 

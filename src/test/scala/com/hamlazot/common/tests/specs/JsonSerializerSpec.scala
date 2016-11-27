@@ -2,7 +2,7 @@ package com.hamlazot.common.tests.specs
 
 import java.time.ZoneOffset
 
-import com.hamlazot.common.serialization.{CamelcaseDeseiralizationTransformer, JsonSerializer, Mapper, SnakecaseSerializationTransformer}
+import com.hamlazot.common.serialization.{Naive, DeserializationStrategy, CamelcaseDeseiralizationTransformer, JsonSerializer, Mapper, SnakecaseSerializationTransformer}
 import com.hamlazot.common.tests.mocks.MockEnum.MockEnum
 import com.hamlazot.common.tests.mocks.{CaseClassWithCustomMapKey, CaseClassWithInt, MockCaseClass, MockDateTimeContainer, MockEnum, NestingTrait}
 import org.specs2.mutable.Specification
@@ -18,9 +18,10 @@ class JsonSerializerSpec
   with NestingTrait
   {
 
-//  import com.hamlazot.common.macros.Macros.Mappable._
+
   "JsonMarshaller " should {
     "deserialize enum" in {
+      import com.hamlazot.common.macros.Macros.Mappable
       registerEnumForMarshalling(MockEnum)
       val request = MockCaseClass[MockEnum]("jojo", MockEnum.VALUE1)
       val serializedRequest = serialize(request)
@@ -82,11 +83,14 @@ class JsonSerializerSpec
     }
 
     "deserialize nested case classes" in {
+      object NaiveSerializer extends JsonSerializer {
+        override val deserializationStrategy: DeserializationStrategy = Naive
+      }
+
       import com.hamlazot.common.macros.Macros.Mappable
       val nestedCaseClass = NestedCaseClass("Jojo", 35)
-      val serialized = serialize(nestedCaseClass)
-      val map = parse(serialized).values.asInstanceOf[Map[String, Any]]
-      val nested = deseriamap[NestedCaseClass](serialized)
+      val serialized = NaiveSerializer.serialize(nestedCaseClass)
+      val nested = NaiveSerializer.deseriamap[NestedCaseClass](serialized)
 
       nested shouldEqual nestedCaseClass
     }
