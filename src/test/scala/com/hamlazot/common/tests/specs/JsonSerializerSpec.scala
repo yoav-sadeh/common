@@ -1,10 +1,13 @@
 package com.hamlazot.common.tests.specs
 
 import java.time.ZoneOffset
+import java.util.UUID
 
-import com.hamlazot.common.serialization.{Naive, DeserializationStrategy, CamelcaseDeseiralizationTransformer, JsonSerializer, Mapper, SnakecaseSerializationTransformer}
+import com.hamlazot.common.macros.Macros.Serializer
+import com.hamlazot.common.serialization.{CamelcaseDeseiralizationTransformer, JsonSerializer, SnakecaseSerializationTransformer}
 import com.hamlazot.common.tests.mocks.MockEnum.MockEnum
 import com.hamlazot.common.tests.mocks.{CaseClassWithCustomMapKey, CaseClassWithInt, MockCaseClass, MockDateTimeContainer, MockEnum, NestingTrait}
+import org.json4s.JObject
 import org.specs2.mutable.Specification
 
 /**
@@ -15,13 +18,11 @@ class JsonSerializerSpec
   with JsonSerializer
   with SnakecaseSerializationTransformer
   with CamelcaseDeseiralizationTransformer
-  with NestingTrait
-  {
+  with Marshaller {
 
 
   "JsonMarshaller " should {
     "deserialize enum" in {
-      import com.hamlazot.common.macros.Macros.Mappable
       registerEnumForMarshalling(MockEnum)
       val request = MockCaseClass[MockEnum]("jojo", MockEnum.VALUE1)
       val serializedRequest = serialize(request)
@@ -83,17 +84,49 @@ class JsonSerializerSpec
     }
 
     "deserialize nested case classes" in {
-      object NaiveSerializer extends JsonSerializer {
-        override val deserializationStrategy: DeserializationStrategy = Naive
+      object nest extends NestingTrait
+      import com.hamlazot.common.macros.Macros.Serializer
+      val castable = implicitly[Serializer[nest.NestedCaseClass]]
+
+      val nestedCaseClass = nest.NestedCaseClass("Jojo", 35)
+      val serialized = serialize(nestedCaseClass)
+
+      val nested = castable.deserializ(serialized)
+      nested shouldEqual nestedCaseClass
+
+    }
+
+    "deserialize nested case classes in a generic manner" in {
+
+      object nest extends NestingTrait
+      val nestedCaseClass = nest.NestedCaseClass("Jojo", 35)
+      val serialized = serialize(nestedCaseClass)
+
+      val nested = marshal[nest.NestedCaseClass](serialized)
+      nested shouldEqual nestedCaseClass
+      true shouldEqual (true)
+    }
+
+    "deserialize nested case classes with abstract shit in it in a generic manner" in {
+      object impl extends NestingTrait {
+        type Trustees = String //Map[UUID, Int]
       }
 
-      import com.hamlazot.common.macros.Macros.Mappable
-      val nestedCaseClass = NestedCaseClass("Jojo", 35)
-      val serialized = NaiveSerializer.serialize(nestedCaseClass)
-      val nested = NaiveSerializer.deseriamap[NestedCaseClass](serialized)
+      val nestedCaseClass = impl.NestedCaseClassWithShitInIt("Jojo", 35, UUID.randomUUID.toString)
+      impl.NestedCaseClassWithShitInIt.unapply(nestedCaseClass)
+      val serialized = serialize(impl.NestedCaseClassWithShitInIt.unapply(nestedCaseClass))
+      val json = parse(serialized).asInstanceOf[JObject].children
 
+      val nested = marshal[impl.NestedCaseClassWithShitInIt](serialized)
       nested shouldEqual nestedCaseClass
     }
   }
 
+}
+
+trait Marshaller {
+  def marshal[A: Serializer](json: String): A = {
+    val castable = implicitly[Serializer[A]]
+    castable.deserializ(json)
+  }
 }

@@ -3,14 +3,13 @@ package com.hamlazot.common.serialization
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import com.hamlazot.common.macros.Macros.TypePath
-import com.hamlazot.common.macros.Macros
+
 import com.hamlazot.common.macros.Macros.Mappable
 import org.json4s.JsonAST.{JNull, JString}
 import org.json4s.ext.{EnumNameSerializer, JavaTypesSerializers}
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.Serialization.write
-import org.json4s.{MappingException, CustomKeySerializer, CustomSerializer, DefaultFormats}
+import org.json4s.{CustomKeySerializer, CustomSerializer, DefaultFormats}
 
 import scala.collection.mutable
 
@@ -40,19 +39,16 @@ trait JsonSerializer
     parsed.map(transformDeserialized).extract[A]
   }
 
-  def deseriamap[A](json: String)(implicit manif: Manifest[A], mapp: Mappable[A]): A = {
+  def deseriamap[A](json: String)(implicit mapp: Mappable[A]): A = {
     val parsed = parse(json)
 
-    deserializationStrategy match{
-      case Naive => materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String,Any]])
-      case Recurssive => parsed.map(transformDeserialized).extract[A]
-    }
+    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String, Any]])
   }
 
   def material[A: Mappable](json: String): A = {
     val parsed = parse(json)
 
-    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String,Any]])
+    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String, Any]])
   }
 
   def registerEnumForMarshalling[A <: Enumeration](enum: Enumeration) = enums += new EnumNameSerializer(enum)

@@ -2,13 +2,13 @@ import sbt._
 import Keys._
 
 object MacroBuild extends Build {
+  name := "common"
+
+  organization := "com.hamlazot"
+
+  version := "0.1.0-SNAPSHOT"
+
   lazy val main = Project("common", file(".")) dependsOn(macroSub) settings {
-    name := "common"
-
-    organization := "com.hamlazot"
-
-    version := "0.1.0-SNAPSHOT"
-
 
     libraryDependencies ++= Seq(
       "org.json4s" %% "json4s-jackson" % "3.3.0",
