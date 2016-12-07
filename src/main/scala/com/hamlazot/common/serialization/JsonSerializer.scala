@@ -4,7 +4,6 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-import com.hamlazot.common.macros.Macros.Mappable
 import org.json4s.JsonAST.{JNull, JString}
 import org.json4s.ext.{EnumNameSerializer, JavaTypesSerializers}
 import org.json4s.jackson.JsonMethods
@@ -19,8 +18,7 @@ import scala.collection.mutable
 trait JsonSerializer
   extends JsonMethods
   with SerializationTransformer
-  with DeserializationTransformer
-  with Mapper {
+  with DeserializationTransformer {
 
   val deserializationStrategy: DeserializationStrategy = Recurssive
   private val enums: mutable.MutableList[EnumNameSerializer[_]] = mutable.MutableList.empty[EnumNameSerializer[_]]
@@ -37,18 +35,6 @@ trait JsonSerializer
     val parsed = parse(json)
 
     parsed.map(transformDeserialized).extract[A]
-  }
-
-  def deseriamap[A](json: String)(implicit mapp: Mappable[A]): A = {
-    val parsed = parse(json)
-
-    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String, Any]])
-  }
-
-  def material[A: Mappable](json: String): A = {
-    val parsed = parse(json)
-
-    materialize[A](parsed.map(transformDeserialized).values.asInstanceOf[Map[String, Any]])
   }
 
   def registerEnumForMarshalling[A <: Enumeration](enum: Enumeration) = enums += new EnumNameSerializer(enum)
@@ -69,5 +55,3 @@ case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](form
     JString(zdt.truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_INSTANT))
 }
   ))
-
-//trait Manifestable[T] extends Manifest[T] with Mappable[T]

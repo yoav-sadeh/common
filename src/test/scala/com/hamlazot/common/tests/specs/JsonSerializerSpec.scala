@@ -3,7 +3,6 @@ package com.hamlazot.common.tests.specs
 import java.time.ZoneOffset
 import java.util.UUID
 
-import com.hamlazot.common.macros.Macros.Serializer
 import com.hamlazot.common.serialization.{CamelcaseDeseiralizationTransformer, JsonSerializer, SnakecaseSerializationTransformer}
 import com.hamlazot.common.tests.mocks.MockEnum.MockEnum
 import com.hamlazot.common.tests.mocks.{CaseClassWithCustomMapKey, CaseClassWithInt, MockCaseClass, MockDateTimeContainer, MockEnum, NestingTrait}
@@ -17,11 +16,10 @@ class JsonSerializerSpec
   extends Specification
   with JsonSerializer
   with SnakecaseSerializationTransformer
-  with CamelcaseDeseiralizationTransformer
-  with Marshaller {
+  with CamelcaseDeseiralizationTransformer {
 
 
-  "JsonMarshaller " should {
+  "JsonSerializer " should {
     "deserialize enum" in {
       registerEnumForMarshalling(MockEnum)
       val request = MockCaseClass[MockEnum]("jojo", MockEnum.VALUE1)
@@ -83,50 +81,7 @@ class JsonSerializerSpec
       deserialized.map.keys.head shouldEqual UUID.fromString("4c6e254e-d9b0-4d1b-946a-845fb5ce8627")
     }
 
-    "deserialize nested case classes" in {
-      object nest extends NestingTrait
-      import com.hamlazot.common.macros.Macros.Serializer
-      val castable = implicitly[Serializer[nest.NestedCaseClass]]
-
-      val nestedCaseClass = nest.NestedCaseClass("Jojo", 35)
-      val serialized = serialize(nestedCaseClass)
-
-      val nested = castable.deserializ(serialized)
-      nested shouldEqual nestedCaseClass
-
-    }
-
-    "deserialize nested case classes in a generic manner" in {
-
-      object nest extends NestingTrait
-      val nestedCaseClass = nest.NestedCaseClass("Jojo", 35)
-      val serialized = serialize(nestedCaseClass)
-
-      val nested = marshal[nest.NestedCaseClass](serialized)
-      nested shouldEqual nestedCaseClass
-      true shouldEqual (true)
-    }
-
-    "deserialize nested case classes with abstract shit in it in a generic manner" in {
-      object impl extends NestingTrait {
-        type Trustees = String //Map[UUID, Int]
-      }
-
-      val nestedCaseClass = impl.NestedCaseClassWithShitInIt("Jojo", 35, UUID.randomUUID.toString)
-      impl.NestedCaseClassWithShitInIt.unapply(nestedCaseClass)
-      val serialized = serialize(impl.NestedCaseClassWithShitInIt.unapply(nestedCaseClass))
-      val json = parse(serialized).asInstanceOf[JObject].children
-
-      val nested = marshal[impl.NestedCaseClassWithShitInIt](serialized)
-      nested shouldEqual nestedCaseClass
-    }
   }
 
 }
 
-trait Marshaller {
-  def marshal[A: Serializer](json: String): A = {
-    val castable = implicitly[Serializer[A]]
-    castable.deserializ(json)
-  }
-}
