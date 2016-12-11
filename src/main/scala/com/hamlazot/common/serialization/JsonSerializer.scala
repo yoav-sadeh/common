@@ -20,7 +20,6 @@ trait JsonSerializer
   with SerializationTransformer
   with DeserializationTransformer {
 
-  val deserializationStrategy: DeserializationStrategy = Recurssive
   private val enums: mutable.MutableList[EnumNameSerializer[_]] = mutable.MutableList.empty[EnumNameSerializer[_]]
   private val customKeySerializers: mutable.MutableList[CustomKeySerializer[_]] = mutable.MutableList.empty[CustomKeySerializer[_]]
 
